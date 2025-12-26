@@ -127,6 +127,23 @@ class Validations {
         return this;
     }
 
+    isBefore(field_name, target_field) {
+        const start = this.valor[field_name];
+        const end = this.valor[target_field];
+
+        if (!start || !end) {
+            return this;
+        }
+
+        if (start >= end) {
+            this.error.push({
+                field: field_name,
+                message: `El campo ${field_name} debe ser anterior a ${target_field}`,
+            });
+        }
+        return this;
+    }
+
     obtenerErrores() {
         return this.error;
     }

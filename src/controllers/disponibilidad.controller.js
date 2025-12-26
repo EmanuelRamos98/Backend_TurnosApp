@@ -11,7 +11,7 @@ export const createDisponibilidad = async (req, res, next) => {
         const schema = {
             dias: { type: "array", required: true },
             profesional: { type: "string", required: true, min: 24, max: 24 },
-            horaInicio: { type: "time", required: true },
+            horaInicio: { type: "time", required: true, isBefore: "horaFin" },
             horaFin: { type: "time", required: true },
             duracionTurno: { type: "number", required: true, min: 15, max: 60 },
         };
@@ -103,11 +103,12 @@ export const getDisponibilidadByProfesional = async (req, res, next) => {
     }
 };
 
-export const updateDisponibilidad = (req, res, next) => {
+export const updateDisponibilidad = async (req, res, next) => {
     try {
         const { profesional_id, id } = req.params;
+        const { horaInicio, horaFin, diaSemana, duracionTurno } = req.body;
 
-        const schema = {
+        const schemaParams = {
             profesional_id: {
                 type: "string",
                 required: true,
@@ -117,16 +118,115 @@ export const updateDisponibilidad = (req, res, next) => {
             id: { type: "string", required: true, min: 24, max: 24 },
         };
 
-        const errores = validaInput(req.params, schema);
-        if (errores.length > 0) {
-            return next(new AppError("Errores de validacion", 400, errores));
+        const erroresParams = validaInput(req.params, schemaParams);
+        if (erroresParams.length > 0) {
+            return next(
+                new AppError("ID o Profesional invalidos", 400, errores)
+            );
         }
+
+        const schemaBody = {
+            horaInicio: { type: "time", isBefore: "horaFin" },
+            horaFin: { type: "time" },
+            diaSemana: { type: "number", min: 0, max: 6 },
+            duracionTurno: { type: "number", min: 15, max: 60 },
+        };
+
+        const erroresBody = validaInput(req.body, schemaBody);
+
+        if (erroresBody.length > 0) {
+            return next(
+                new AppError(
+                    "Datos de actualizacion invalidos",
+                    400,
+                    erroresBody
+                )
+            );
+        }
+
+        const disponibilidadActual =
+            await DisponibilidadRepository.getDisponibilidadById(id);
+        if (!disponibilidadActual) {
+            return next(
+                new AppError(
+                    "La disponibilidad que intentas actualizar ne existe",
+                    404
+                )
+            );
+        }
+
+        if (disponibilidadActual.profesional.toString() !== profesional_id) {
+            return next(
+                new AppError(
+                    "Esta disponibilidad no pertenece al profecional indicado",
+                    403
+                )
+            );
+        }
+
+        const diaAValidar =
+            diaSemana !== undefined
+                ? diaSemana
+                : disponibilidadActual.diaSemana;
+        const inicioAValidar = horaInicio || disponibilidadActual.horaInicio;
+        const finAValidar = horaFin || disponibilidadActual.horaFin;
+
+        const hayConflicto =
+            await DisponibilidadRepository.verificarSolapamiento(
+                profesional_id,
+                diaAValidar,
+                inicioAValidar,
+                finAValidar,
+                id
+            );
+
+        if (hayConflicto) {
+            return next(
+                new AppError(
+                    `El nuevo horario se solapa con otro ya existente (${hayConflicto.horaInicio}-${hayConflicto.horaFin})`,
+                    400
+                )
+            );
+        }
+
+        const actualizacion =
+            await DisponibilidadRepository.updateDisponibilidad(id, req.body);
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    "Disponibilidad actualizada con exito",
+                    actualizacion
+                )
+            );
     } catch (error) {
         next(error);
     }
 };
-export const deleteDisponibilidad = (req, res, next) => {
+export const deleteDisponibilidad = async (req, res, next) => {
     try {
+        const { id } = req.params;
+        const schema = {
+            id: { type: "string", required: true, min: 24, max: 24 },
+        };
+
+        const errores = validaInput(req.params, schema);
+        if (errores.length > 0) {
+            return next(new AppError("ID invalido", 400));
+        }
+
+        const disponibilidad =
+            await DisponibilidadRepository.getDisponibilidadById(id);
+        if (!disponibilidad) {
+            return next(new AppError("No existe", 400));
+        }
+
+        await DisponibilidadRepository.deleteDisponibilidad(id);
+        return res
+            .status(200)
+            .json(new ApiResponse(200, "Elimindada con exito"));
     } catch (error) {
         next(error);
     }

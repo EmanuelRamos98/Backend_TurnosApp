@@ -10,6 +10,10 @@ export const validaInput = (data, schema) => {
             validation.isRequired(field);
         }
 
+        if (reglas.isBefore) {
+            validation.isBefore(field, reglas.isBefore);
+        }
+
         if (reglas.type === "string") {
             validation.isString(field);
             if (reglas.min || reglas.max) {

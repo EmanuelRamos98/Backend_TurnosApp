@@ -9,29 +9,44 @@ class DisponibilidadRepository {
         profesional_id,
         dia,
         nuevoInicio,
-        nuevoFin
+        nuevoFin,
+        excludeId = null
     ) {
-        const conflicto = await Disponibilidad.findOne({
+        const query = {
             profesional: profesional_id,
             diaSemana: dia,
             $and: [
                 { horaInicio: { $lt: nuevoFin } }, // El turno existente empieza antes de que el nuevo termine
                 { horaFin: { $gt: nuevoInicio } }, // El turno existente termina después de que el nuevo empiece
             ],
-        });
+        };
+        // Si estamos editando, le decimos a Mongo: "Busca choques, pero IGNORA este ID"
+        if (excludeId) {
+            query._id = { $ne: excludeId }; // $ne = Not Equal (No igual a)
+        }
+        const conflicto = await Disponibilidad.findOne(query);
         return conflicto;
     }
 
     static async getDisponibilidad(profesional_id) {
-        return await Disponibilidad.find({ profesional: profesional_id });
+        return await Disponibilidad.find({ profesional: profesional_id }).sort({
+            diaSemana: 1,
+            horaInicio: 1,
+        });
     }
 
-    static async updateDisponibilidad(profesional, new_data) {
-        return await Disponibilidad.findOneAndUpdate(profesional, new_data);
+    static async getDisponibilidadById(id) {
+        return await Disponibilidad.findById(id);
     }
 
-    static async deleteDisponibilidad(id_diponibilidad) {
-        return await Disponibilidad.findByIdAndDelete(id_diponibilidad);
+    static async updateDisponibilidad(id, new_data) {
+        return await Disponibilidad.findOneAndUpdate({ _id: id }, new_data, {
+            new: true,
+        });
+    }
+
+    static async deleteDisponibilidad(id) {
+        return await Disponibilidad.findByIdAndDelete(id);
     }
 }
 
