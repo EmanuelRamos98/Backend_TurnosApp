@@ -9,6 +9,12 @@ class UsuarioRepository {
         return await Usuario.findOne({ nombre: nombre }).select("+password");
     }
 
+    static async buscarCliente(email, dni) {
+        return await Usuario.findOne({
+            $or: [{ email: email }, { dni: dni }],
+        });
+    }
+
     static async getProfesional(profesional_id) {
         return await Usuario.findById(profesional_id);
     }

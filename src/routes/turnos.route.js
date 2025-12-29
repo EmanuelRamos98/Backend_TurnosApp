@@ -6,6 +6,7 @@ import {
     getTurnoByCliente,
     getTurnos,
     updateTurno,
+    verifyTurno,
 } from "../controllers/turnos.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
 
@@ -16,6 +17,8 @@ turnoRoute.get("/:id_profesional", getTurnoByCliente);
 turnoRoute.get("/", authMiddleware, getTurnos);
 
 turnoRoute.post("/", createTurno);
+
+turnoRoute.get("/confirmar/:token", verifyTurno);
 
 turnoRoute.put("/:id", updateTurno);
 

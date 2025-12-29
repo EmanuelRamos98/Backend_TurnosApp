@@ -12,17 +12,18 @@ const TurnosSchema = new mongoose.Schema(
             ref: "Usuario",
             required: true,
         },
-        servicio: { type: mongoose.Schema.Types.ObjectId, ref: "Servicio" },
-        fechaHoraInicio: { type: Date, required: true },
-        fechaHoraFin: { type: Date, required: true },
+        fecha: { type: Date, required: true },
+        hora: { type: String, required: true },
         estado: {
             type: String,
-            enum: ["pendiente", "confirmado", "cancelado", "realizado"],
+            enum: ["pendiente", "confirmado", "cancelado"],
             default: "pendiente",
         },
         observaciones: { type: String },
     },
     { timestamps: true }
 );
+
+TurnosSchema.index({ profesional: 1, fecha: 1, hora: 1 }, { unique: true });
 
 export default mongoose.model("Turnos", TurnosSchema);

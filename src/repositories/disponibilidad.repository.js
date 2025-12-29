@@ -20,12 +20,21 @@ class DisponibilidadRepository {
                 { horaFin: { $gt: nuevoInicio } }, // El turno existente termina después de que el nuevo empiece
             ],
         };
-        // Si estamos editando, le decimos a Mongo: "Busca choques, pero IGNORA este ID"
+
         if (excludeId) {
             query._id = { $ne: excludeId }; // $ne = Not Equal (No igual a)
         }
         const conflicto = await Disponibilidad.findOne(query);
         return conflicto;
+    }
+
+    static async verificarRegla(profesionalId, diaSemana, horaTurno) {
+        return await Disponibilidad.findOne({
+            profesional: profesionalId,
+            diaSemana: diaSemana,
+            horaInicio: { $lte: horaTurno },
+            horaFin: { $gt: horaTurno },
+        });
     }
 
     static async getDisponibilidad(profesional_id) {

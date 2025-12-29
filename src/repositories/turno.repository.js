@@ -5,12 +5,17 @@ class TurnosRepository {
         return await Turnos.create(new_data);
     }
 
-    static async findTurnos() {
+    static async getTurnos() {
         return await Turnos.find({});
     }
 
-    static async findTurnosByProfesional(profesional) {
-        return await Turnos.findOne({ profesional: profesional });
+    static async findTurnos(profesionalId, fecha, hora) {
+        return await Turnos.findOne({
+            profesional: profesionalId,
+            fecha: fecha,
+            hora: hora,
+            estado: { $ne: "cancelado" },
+        });
     }
 
     static async findTurnosByCliente(cliente) {
@@ -19,6 +24,14 @@ class TurnosRepository {
 
     static async updateTurno(id_turno, new_data) {
         return await Turnos.findOneAndUpdate(id_turno, new_data);
+    }
+
+    static async verifyTurno(id_turno) {
+        return await Turnos.findByIdAndUpdate(
+            id_turno,
+            { estado: "confirmado" },
+            { new: true }
+        );
     }
 
     static async deleteTurno(id_turno) {
