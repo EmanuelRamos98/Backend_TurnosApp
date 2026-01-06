@@ -7,7 +7,7 @@ import DisponibilidadRepository from "../repositories/disponibilidad.repository.
 import TurnosRepository from "../repositories/turno.repository.js";
 import UsuarioRepository from "../repositories/usuario.repository.js";
 import ENVIROMENT from "../config/enviroment.config.js";
-import EmailService from "../helpers/email.helpers.js";
+import EmailService from "../services/email.services.js";
 
 export const getTurnoByProfesional = async (req, res, next) => {
     try {
@@ -92,16 +92,13 @@ export const createTurno = async (req, res, next) => {
             clienteId = nuevoUsuario._id;
         }
 
-        const fechaObj = new Date(fecha + "T00:00:00");
-        if (isNaN(fechaObj.getTime())) {
-            return next(
-                new AppError(
-                    "Formato de fecha invalido. Debe ser YYYY-MM-DD (ej: 2023-12-25)",
-                    400
-                )
-            );
+        const fechaCompleta = new Date(`${fecha}T${hora}:00`);
+
+        if (isNaN(fechaCompleta.getTime())) {
+            return next(new AppError("Formato fecha invalido", 400));
         }
-        const diaSemana = fechaObj.getDay();
+
+        const diaSemana = fechaCompleta.getDay();
 
         const trabajaNormalmente =
             await DisponibilidadRepository.verificarRegla(
@@ -146,7 +143,7 @@ export const createTurno = async (req, res, next) => {
         const new_data = {
             cliente: clienteId,
             profesional,
-            fecha,
+            fecha: fechaCompleta,
             hora,
             estado: "pendiente",
         };
@@ -158,10 +155,9 @@ export const createTurno = async (req, res, next) => {
             { expiresIn: "1h" }
         );
 
-        await EmailService.emailConfirmTurno(
+        await EmailService.sendSolicitudVerificacion(
             datos_cliente.email,
             datos_cliente.nombre,
-            nuevoTurno._id,
             fecha,
             hora,
             TOKEN
@@ -191,17 +187,35 @@ export const verifyTurno = async (req, res, next) => {
         const decode = jwt.verify(token, ENVIROMENT.SECRET_KEY);
 
         const turno = await TurnosRepository.verifyTurno(decode.turnoId);
+
         if (!turno) {
             return res.status(404).send("<h1>Error: El turno no existe.</h1>");
         }
+        if (turno.cliente && turno.cliente.email) {
+            const fechaFormateada = new Date(turno.fecha).toLocaleDateString(
+                "es-AR"
+            );
+            await EmailService.sendTurnoConfirmado(
+                turno.cliente.email,
+                turno.cliente.nombre,
+                fechaFormateada,
+                turno.hora,
+                turno.profesional.nombre
+            );
+        }
 
         res.status(200).send(`
-                <div style="text-align: center; font-family: sans-serif; margin-top: 50px;">
-                    <h1 style="color: green;">¡Turno Confirmado! ✅</h1>
-                    <p>Te esperamos el día ${turno.fecha} a las ${turno.hora}.</p>
-                    <p>Ya puedes cerrar esta ventana.</p>
-                </div>
-            `);
+            <div style="text-align: center; font-family: sans-serif; margin-top: 50px;">
+                <h1 style="color: green;">¡Turno Confirmado! ✅</h1>
+                <p>Hola <b>${
+                    turno.cliente.nombre
+                }</b>, tu turno ha sido agendado exitosamente.</p>
+                <p>Te esperamos el día <b>${new Date(
+                    turno.fecha
+                ).toLocaleDateString()}</b> a las <b>${turno.hora}</b>.</p>
+                <p>Hemos enviado un comprobante a ${turno.cliente.email}.</p>
+            </div>
+        `);
     } catch (error) {
         if (
             error.name === "TokenExpiredError" ||

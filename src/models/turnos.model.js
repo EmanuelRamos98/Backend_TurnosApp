@@ -4,7 +4,7 @@ const TurnosSchema = new mongoose.Schema(
     {
         cliente: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Cliente",
+            ref: "Usuario",
             required: true,
         },
         profesional: {
@@ -19,6 +19,7 @@ const TurnosSchema = new mongoose.Schema(
             enum: ["pendiente", "confirmado", "cancelado"],
             default: "pendiente",
         },
+        intentosRecordatorio: { type: Number, default: 0 },
         observaciones: { type: String },
     },
     { timestamps: true }

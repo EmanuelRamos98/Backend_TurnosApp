@@ -5,8 +5,12 @@ class TurnosRepository {
         return await Turnos.create(new_data);
     }
 
-    static async getTurnos() {
-        return await Turnos.find({});
+    static async getRecordatorio(limiteAviso, limiteEliminacion) {
+        return await Turnos.find({
+            estado: "pendiente",
+            intentosRecordatorio: 0,
+            fecha: { $lte: limiteAviso, $gt: limiteEliminacion },
+        }).populate("cliente", "-password");
     }
 
     static async findTurnos(profesionalId, fecha, hora) {
@@ -31,11 +35,20 @@ class TurnosRepository {
             id_turno,
             { estado: "confirmado" },
             { new: true }
-        );
+        )
+            .populate("cliente", "-password")
+            .populate("profesional", "-password");
     }
 
     static async deleteTurno(id_turno) {
         return await Turnos.findByIdAndDelete(id_turno);
+    }
+
+    static async getTurnoLimite(limiteEliminacion) {
+        return await Turnos.find({
+            estado: "pendiente",
+            fecha: { $lte: limiteEliminacion },
+        }).populate("cliente", "-password");
     }
 }
 
