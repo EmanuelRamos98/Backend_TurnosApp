@@ -5,6 +5,7 @@ class TurnosRepository {
         return await Turnos.create(new_data);
     }
 
+    //---------PETICIONES PARA EMAILS---------------------------//
     static async getRecordatorio(limiteAviso, limiteEliminacion) {
         return await Turnos.find({
             estado: "pendiente",
@@ -12,6 +13,24 @@ class TurnosRepository {
             fecha: { $lte: limiteAviso, $gt: limiteEliminacion },
         }).populate("cliente", "-password");
     }
+
+    static async getTurnoLimite(limiteEliminacion) {
+        return await Turnos.find({
+            estado: "pendiente",
+            fecha: { $lte: limiteEliminacion },
+        }).populate("cliente", "-password");
+    }
+
+    static async getTurnosPorFecha(inicio, fin) {
+        return await Turnos.find({
+            fecha: { $gte: inicio, $lte: fin },
+            estado: "confirmado",
+        })
+            .populate("profesional", "nombre email")
+            .populate("cliente", "nombre apellido telefono email")
+            .sort({ fecha: 1 });
+    }
+    //-----------------------------------------------------//
 
     static async findTurnos(profesionalId, fecha, hora) {
         return await Turnos.findOne({
@@ -42,13 +61,6 @@ class TurnosRepository {
 
     static async deleteTurno(id_turno) {
         return await Turnos.findByIdAndDelete(id_turno);
-    }
-
-    static async getTurnoLimite(limiteEliminacion) {
-        return await Turnos.find({
-            estado: "pendiente",
-            fecha: { $lte: limiteEliminacion },
-        }).populate("cliente", "-password");
     }
 }
 
