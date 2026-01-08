@@ -1,4 +1,4 @@
-import Ausencia from "../models/ausencia.model.js";
+import Ausencia from '../models/ausencia.model.js';
 
 class AusenciaRepository {
     static async create(new_data) {
@@ -6,10 +6,7 @@ class AusenciaRepository {
     }
 
     static async getAusencia(profesional, fecha) {
-        return await Ausencia.findOne(
-            { profesional: profesional },
-            { fecha: fecha }
-        );
+        return await Ausencia.findOne({ profesional: profesional }, { fecha: fecha });
     }
 }
 

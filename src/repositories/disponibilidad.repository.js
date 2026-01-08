@@ -1,17 +1,11 @@
-import Disponibilidad from "../models/disponibilidad.model.js";
+import Disponibilidad from '../models/disponibilidad.model.js';
 
 class DisponibilidadRepository {
     static async create(new_data) {
         return await Disponibilidad.create(new_data);
     }
 
-    static async verificarSolapamiento(
-        profesional_id,
-        dia,
-        nuevoInicio,
-        nuevoFin,
-        excludeId = null
-    ) {
+    static async verificarSolapamiento(profesional_id, dia, nuevoInicio, nuevoFin, excludeId = null) {
         const query = {
             profesional: profesional_id,
             diaSemana: dia,

@@ -1,9 +1,9 @@
-import nodemailer from "nodemailer";
-import ENVIROMENT from "../config/enviroment.config.js";
+import nodemailer from 'nodemailer';
+import ENVIROMENT from '../config/enviroment.config.js';
 
 class EmailService {
     static transporter = nodemailer.createTransport({
-        service: "gmail",
+        service: 'gmail',
         auth: {
             user: ENVIROMENT.EMAIL,
             pass: ENVIROMENT.KEY_EMAIL,
@@ -33,7 +33,7 @@ class EmailService {
     static async sendSolicitudVerificacion(email, nombre, fecha, hora, token) {
         const confirmLink = `${ENVIROMENT.URL_API}/api/turnos/confirmar/${token}`;
 
-        const subject = "Accion Requerida: Confirma tu Turno";
+        const subject = 'Accion Requerida: Confirma tu Turno';
         const html = `
             <h1>Hola ${nombre}</h1>
             p>Solicitaste un turno para el <b>${fecha}</b> a las <b>${hora}</b>.</p>
@@ -49,7 +49,7 @@ class EmailService {
     //Email de ultimo aviso
     static async sendUltimoAviso(email, nombre, fecha, hora, token) {
         const confirmLink = `${ENVIROMENT.URL_API}/api/turnos/confirmar/${token}`;
-        const subject = "Recordatorio: Confirma tu turno";
+        const subject = 'Recordatorio: Confirma tu turno';
         const html = `
             <h2 style="color: #e67e22;">⚠️ Recordatorio de Turno</h2>
             <p>Hola ${nombre}, tienes un turno pendiente para el <b>${fecha} a las ${hora}</b>.</p>
@@ -61,7 +61,7 @@ class EmailService {
 
     //Email de eliminacion
     static async sendTurnoEliminado(email, nombre, fecha, hora) {
-        const subject = "Turno Cancelado por falta de confirmación";
+        const subject = 'Turno Cancelado por falta de confirmación';
         const html = `
             <h2 style="color: red;">❌ Turno Cancelado Automáticamente</h2>
             <p>Hola ${nombre},</p>
@@ -72,7 +72,7 @@ class EmailService {
     }
     //Email de confirmacion
     static async sendTurnoConfirmado(email, nombre, fecha, hora, profesional) {
-        const subject = "✅ ¡Turno Confirmado!";
+        const subject = '✅ ¡Turno Confirmado!';
         const html = `
             <div style="font-family: Arial, sans-serif; color: #333;">
                 <h1 style="color: green;">¡Listo! Tu turno está agendado.</h1>
@@ -90,14 +90,8 @@ class EmailService {
     }
 
     //Recordatorio
-    static async sendRecordatorio(
-        email,
-        nombreCliente,
-        fecha,
-        hora,
-        nombreProfesional
-    ) {
-        const subject = "📢 Recordatorio: Tu turno de mañana";
+    static async sendRecordatorio(email, nombreCliente, fecha, hora, nombreProfesional) {
+        const subject = '📢 Recordatorio: Tu turno de mañana';
         const html = `
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
             <h2 style="color: #27ae60;">📅 ¡Recordatorio de tu Turno!</h2>
@@ -119,28 +113,19 @@ class EmailService {
     }
 
     //Recordatorio profesional
-    static async sendRecordatorioProfesional(
-        emailProfesional,
-        nombreProfesional,
-        fecha,
-        listaTurnos
-    ) {
+    static async sendRecordatorioProfesional(emailProfesional, nombreProfesional, fecha, listaTurnos) {
         //Creo filas dinamicamnete
         const filasHTML = listaTurnos
             .map(
                 (turno) => `
         <tr>
             <td style="padding: 8px; border: 1px solid #ddd;">${turno.hora}</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${
-                turno.cliente.nombre
-            } ${turno.cliente.apellido}</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${
-                turno.cliente.telefono || "-"
-            }</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${turno.cliente.nombre} ${turno.cliente.apellido}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${turno.cliente.telefono || '-'}</td>
         </tr>
     `
             )
-            .join("");
+            .join('');
 
         // HTML del email completo
         const subject = `Agenda del día ${fecha}`;
@@ -164,6 +149,29 @@ class EmailService {
         <p style="margin-top: 20px;">Que tengas una buena jornada.</p>
     `;
         return await this.__enviar(emailProfesional, subject, html);
+    }
+
+    //Mail de cancelaciones
+    static async sendAvisoCancelacion(email, asunto, mensaje) {
+        const html = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px; max-width: 600px;">
+            <h2 style="color: #c0392b;">❌ Aviso de Cancelación</h2>
+            
+            <p style="font-size: 16px; color: #333;">
+                ${mensaje}
+            </p>
+
+            <div style="margin-top: 20px; padding: 10px; background-color: #fce4e4; border-radius: 5px; color: #c0392b;">
+                <small>⚠️ El turno ha quedado disponible nuevamente en el sistema.</small>
+            </div>
+            
+            <p style="color: #777; font-size: 12px; margin-top: 30px;">
+                Si crees que esto es un error, por favor comunícate con la administración.
+            </p>
+        </div>
+    `;
+
+        return await this.__enviar(email, asunto, html);
     }
 }
 

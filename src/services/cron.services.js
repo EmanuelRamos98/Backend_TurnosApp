@@ -1,34 +1,25 @@
-import cron from "node-cron";
-import jwt from "jsonwebtoken";
-import ENVIROMENT from "../config/enviroment.config.js";
-import EmailService from "./email.services.js";
-import TurnosRepository from "../repositories/turno.repository.js";
+import cron from 'node-cron';
+import jwt from 'jsonwebtoken';
+import ENVIROMENT from '../config/enviroment.config.js';
+import EmailService from './email.services.js';
+import TurnosRepository from '../repositories/turno.repository.js';
 
 const iniciarCron = () => {
     //Ejecutamos cada una hora
-    cron.schedule("0 * * * *", async () => {
+    cron.schedule('0 * * * *', async () => {
         const ahora = new Date();
 
         //Defino los limites
         const limiteAviso = new Date(ahora.getTime() + 24 * 60 * 60 * 1000);
-        const limiteEliminacion = new Date(
-            ahora.getTime() + 2 * 60 * 60 * 1000
-        );
+        const limiteEliminacion = new Date(ahora.getTime() + 2 * 60 * 60 * 1000);
 
         try {
             //Buscamos turnos sin confirmar para recordar
-            const turnosParaAvisar = await TurnosRepository.getRecordatorio(
-                limiteAviso,
-                limiteEliminacion
-            );
+            const turnosParaAvisar = await TurnosRepository.getRecordatorio(limiteAviso, limiteEliminacion);
 
             for (const turno of turnosParaAvisar) {
                 if (turno.cliente?.email) {
-                    const token = jwt.sign(
-                        { turnoId: turno._id },
-                        ENVIROMENT.SECRET_KEY,
-                        { expiresIn: "24h" }
-                    );
+                    const token = jwt.sign({ turnoId: turno._id }, ENVIROMENT.SECRET_KEY, { expiresIn: '24h' });
 
                     await EmailService.sendUltimoAviso(
                         turno.cliente.email,
@@ -45,9 +36,7 @@ const iniciarCron = () => {
             }
 
             //Borramos los turnos no confirmados
-            const turnosParaBorrar = await TurnosRepository.getTurnoLimite(
-                limiteEliminacion
-            );
+            const turnosParaBorrar = await TurnosRepository.getTurnoLimite(limiteEliminacion);
 
             for (const turno of turnosParaBorrar) {
                 if (turno.cliente?.email) {
@@ -65,13 +54,13 @@ const iniciarCron = () => {
             if (error.isOperational) {
                 console.warn(`Advertencia Lógica en Cron: ${error.message}`);
             } else {
-                console.error(" Error en el Cron Job:", error);
+                console.error(' Error en el Cron Job:', error);
             }
         }
     });
 
     //Todos los dias a las 20hs
-    cron.schedule("0 20 * * *", async () => {
+    cron.schedule('0 20 * * *', async () => {
         const hoy = new Date();
         const mañana = new Date(hoy);
         mañana.setDate(hoy.getDate() + 1);
@@ -81,13 +70,10 @@ const iniciarCron = () => {
 
         try {
             //Traigo los turnos de mañana
-            const turnosMañana = await TurnosRepository.getTurnosPorFecha(
-                inicioDia,
-                finDia
-            );
+            const turnosMañana = await TurnosRepository.getTurnosPorFecha(inicioDia, finDia);
 
             if (turnosMañana.length === 0) {
-                return console.log("No hay turnos para mañana");
+                return console.log('No hay turnos para mañana');
             }
 
             //Notifico a los clientes
@@ -101,14 +87,9 @@ const iniciarCron = () => {
                             turno.hora,
                             turno.profesional.nombre
                         );
-                        console.log(
-                            `Recordatorio enviado a cliente ${turno.cliente.email}`
-                        );
+                        console.log(`Recordatorio enviado a cliente ${turno.cliente.email}`);
                     } catch (error) {
-                        console.error(
-                            `Falló envio a ${turno.cliente.email}`,
-                            error.message
-                        );
+                        console.error(`Falló envio a ${turno.cliente.email}`, error.message);
                     }
                 }
             }
@@ -130,8 +111,7 @@ const iniciarCron = () => {
 
             for (const id of idsProfesionales) {
                 const listadoTurnoDelProfesional = agendaProfesional[id];
-                const datosProfesional =
-                    listadoTurnoDelProfesional[0].profesional;
+                const datosProfesional = listadoTurnoDelProfesional[0].profesional;
 
                 if (datosProfesional && datosProfesional.email) {
                     await EmailService.sendRecordatorioProfesional(
@@ -146,7 +126,7 @@ const iniciarCron = () => {
                 }
             }
         } catch (error) {
-            console.error("Error enviando agendas:", error);
+            console.error('Error enviando agendas:', error);
         }
     });
 };

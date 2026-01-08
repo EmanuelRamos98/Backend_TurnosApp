@@ -5,11 +5,7 @@ class Validations {
     }
 
     isRequired(field_name) {
-        if (
-            this.valor[field_name] === undefined ||
-            this.valor[field_name] === null ||
-            this.valor[field_name] === ""
-        ) {
+        if (this.valor[field_name] === undefined || this.valor[field_name] === null || this.valor[field_name] === '') {
             this.error.push({
                 field: field_name,
                 message: `El campo ${field_name} es obligatorio`,
@@ -23,7 +19,7 @@ class Validations {
         if (valor === undefined) {
             return this;
         }
-        if (typeof valor !== "number") {
+        if (typeof valor !== 'number') {
             this.error.push({
                 field: field_name,
                 message: `El valor de ${field_name} debe ser un NUMERO`,
@@ -34,7 +30,7 @@ class Validations {
 
     min_max_value(field_name, min, max) {
         const valor = this.valor[field_name];
-        if (valor === undefined || typeof valor !== "number") return this;
+        if (valor === undefined || typeof valor !== 'number') return this;
 
         if (valor < min) {
             this.error.push({
@@ -85,7 +81,7 @@ class Validations {
         const valor = this.valor[field_name];
         if (valor === undefined) return this;
 
-        if (typeof valor !== "string") {
+        if (typeof valor !== 'string') {
             this.error.push({
                 field: field_name,
                 message: `El valor de ${field_name} debe ser de tipo STRING`,
