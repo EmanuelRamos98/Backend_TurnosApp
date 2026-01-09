@@ -20,6 +20,7 @@ turnoRoute.patch('/:id/cancelar', authMiddleware(['cliente', 'profesional', 'adm
 //Profesional & Admin
 turnoRoute.get('/mi-agenda', authMiddleware(['profesional', 'admin']), getMisTurnosProfesional);
 turnoRoute.patch('/:id/estado', authMiddleware(['profesional', 'admin']), marcarEstadoTurno);
+turnoRoute.post('/create-priv', authMiddleware(['admin', 'profesional']), createTurno);
 
 //Admin
 turnoRoute.get('/', authMiddleware(['admin']), getAllTunos);

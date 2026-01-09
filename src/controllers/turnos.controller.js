@@ -11,7 +11,11 @@ import EmailService from '../services/email.services.js';
 
 export const createTurno = async (req, res, next) => {
     try {
-        const { datos_cliente, profesional, fecha, hora } = req.body;
+        const { datos_cliente, profesional, fecha, hora, clienteId } = req.body;
+
+        const usuarioLogueado = req.user || null;
+        const isAdminOPro =
+            usuarioLogueado && (usuarioLogueado.rol === 'admin' || usuarioLogueado.rol === 'profesional');
 
         const schemaTurno = {
             profesional: { type: 'string', required: true, min: 24, max: 24 },
@@ -19,97 +23,109 @@ export const createTurno = async (req, res, next) => {
             hora: { type: 'time', required: true },
         };
 
-        const schemaCliente = {
-            nombre: { type: 'string', required: true, min: 2, max: 50 },
-            apellido: { type: 'string', required: true, min: 2, max: 50 },
-            email: { type: 'email', required: true },
-            dni: {
-                type: 'number',
-                required: true,
-                min: 10000000,
-                max: 99999999,
-            },
-            telefono: { type: 'number', required: true, min: 1000000000 },
-        };
-
         const errorTurno = validaInput(req.body, schemaTurno);
-        let errorCliente = [];
-        if (!datos_cliente) {
-            errorCliente.push({
-                field: 'datos_cliente',
-                message: 'Faltan los datos del cliente',
-            });
+        if (errorTurno.length > 0) {
+            return next(new AppError('Datos invalidos', 400, errorTurno));
+        }
+
+        let idFinalCliente;
+        let nombreCliente;
+        let emailCliente;
+        let esNuevoUsuario = false;
+
+        if (isAdminOPro && clienteId) {
+            const cliente = await UsuarioRepository.findById(clienteId);
+            if (!cliente) return next(new AppError('El cliente no existe', 404));
+
+            idFinalCliente = cliente._id;
+            nombreCliente = cliente.nombre;
+            emailCliente = cliente.email;
         } else {
-            errorCliente = validaInput(datos_cliente, schemaCliente);
+            if (!datos_cliente) return next(new AppError('Faltan los datos del cliente', 400));
+
+            const schemaCliente = {
+                nombre: { type: 'string', required: true, min: 2, max: 50 },
+                apellido: { type: 'string', required: true, min: 2, max: 50 },
+                email: { type: 'email', required: true },
+                dni: { type: 'number', required: true, min: 10000000, max: 99999999 },
+                telefono: { type: 'number', required: true, min: 1000000000 },
+            };
+
+            const errorCliente = validaInput(datos_cliente, schemaCliente);
+            if (errorCliente.length > 0) return next(new AppError('Datos cel cliente invalidos', 400, errorCliente));
+
+            const clienteExistente = await UsuarioRepository.buscarCliente(datos_cliente.email, datos_cliente.dni);
+            if (clienteExistente) {
+                idFinalCliente = clienteExistente._id;
+                nombreCliente = clienteExistente.nombre;
+                emailCliente = clienteExistente.email;
+            } else {
+                const nuevoUsuario = await UsuarioRepository.create({
+                    nombre: datos_cliente.nombre,
+                    apellido: datos_cliente.apellido,
+                    email: datos_cliente.email,
+                    dni: datos_cliente.dni,
+                    telefono: datos_cliente.telefono,
+                    password: Math.random().toString(36).slice(-10),
+                    hasSetPassword: false,
+                    rol: 'cliente',
+                    verificado: false,
+                });
+                idFinalCliente = nuevoUsuario._id;
+                nombreCliente = nuevoUsuario.nombre;
+                emailCliente = nuevoUsuario.email;
+                esNuevoUsuario = true;
+            }
         }
 
-        const totalErrores = [...errorTurno, ...errorCliente];
-        if (totalErrores.length > 0) {
-            return next(new AppError('Datos invalidos', 400, totalErrores));
-        }
-
-        let clienteId;
-
-        const clienteExistente = await UsuarioRepository.buscarCliente(datos_cliente.email, datos_cliente.dni);
-
-        if (clienteExistente) {
-            clienteId = clienteExistente._id;
-        } else {
-            const nuevoUsuario = await UsuarioRepository.create({
-                nombre: datos_cliente.nombre,
-                apellido: datos_cliente.apellido,
-                email: datos_cliente.email,
-                din: datos_cliente.dni,
-                telefono: datos_cliente.telefono,
-                password: Math.random().toString(36).slice(-10),
-                rol: 'cliente',
-                verficado: false,
-            });
-            clienteId = nuevoUsuario._id;
-        }
+        //En caso de ser creado por admin ya queda confirmado
+        const estadoInicial = isAdminOPro ? 'confirmado' : 'pendiente';
 
         const fechaCompleta = new Date(`${fecha}T${hora}:00`);
-
-        if (isNaN(fechaCompleta.getTime())) {
-            return next(new AppError('Formato fecha invalido', 400));
-        }
+        if (isNaN(fechaCompleta.getTime())) return next(new AppError('Formato fecha invalido', 400));
 
         const diaSemana = fechaCompleta.getDay();
 
         const trabajaNormalmente = await DisponibilidadRepository.verificarRegla(profesional, diaSemana, hora);
-
-        if (!trabajaNormalmente) {
-            return next(new AppError('El profesional no esta disponible en ese horario', 400));
-        }
+        if (!trabajaNormalmente) return next(new AppError('El profesional no esta disponible en ese horario', 400));
 
         const tieneAusencia = await AusenciaRepository.getAusencia(profesional, fecha);
-        if (tieneAusencia) {
+        if (tieneAusencia)
             return next(
                 new AppError(`El profesional no esta disponible en esa fecha. Motivo: ${tieneAusencia.motivo}`, 400)
             );
-        }
 
         const turnoOcupado = await TurnosRepository.findTurnos(profesional, fecha, hora);
-        if (turnoOcupado) {
-            return next(new AppError('El turno ya esta ocupado por otra persona', 400));
-        }
+        if (turnoOcupado) return next(new AppError('El turno ya esta ocupado por otra persona', 400));
 
         const new_data = {
-            cliente: clienteId,
+            cliente: idFinalCliente,
             profesional,
             fecha: fechaCompleta,
             hora,
-            estado: 'pendiente',
+            estado: estadoInicial,
         };
+
         const nuevoTurno = await TurnosRepository.create(new_data);
 
-        const TOKEN = jwt.sign({ turnoId: nuevoTurno._id }, ENVIROMENT.SECRET_KEY, { expiresIn: '1h' });
+        if (estadoInicial === 'pendiente') {
+            const TOKEN = jwt.sign({ turnoId: nuevoTurno._id }, ENVIROMENT.SECRET_KEY, { expiresIn: '1h' });
+            await EmailService.sendSolicitudVerificacion(emailCliente, nombreCliente, fecha, hora, TOKEN);
+        } else {
+            const datosPro = await UsuarioRepository.findById(profesional);
+            await EmailService.sendTurnoConfirmado(
+                emailCliente,
+                nombreCliente,
+                new Date(fecha).toLocaleDateString(),
+                hora,
+                datosPro.nombre
+            );
+        }
 
-        await EmailService.sendSolicitudVerificacion(datos_cliente.email, datos_cliente.nombre, fecha, hora, TOKEN);
         return res.status(200).json(
             new ApiResponse(201, 'Turno creado exitosamente', {
                 turno: nuevoTurno,
-                nuevoUsuario: !clienteExistente,
+                nuevoUsuario: esNuevoUsuario,
             })
         );
     } catch (error) {

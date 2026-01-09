@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const UsuarioSchema = new mongoose.Schema(
     {
@@ -9,17 +9,19 @@ const UsuarioSchema = new mongoose.Schema(
         dni: { type: Number, unique: true },
         telefono: { type: String },
         password: { type: String, required: true },
+        hasSetPassword: { type: Boolean, default: false },
 
         rol: {
             type: String,
-            dafult: "cliente",
-            enum: ["admin", "administrativo", "profesional", "cliente"],
+            dafult: 'cliente',
+            enum: ['admin', 'administrativo', 'profesional', 'cliente'],
             required: true,
         },
 
         verificado: { type: Boolean, default: false },
+        tokenRestauracion: { type: String, default: null },
     },
     { timestamps: true }
 );
 
-export default mongoose.model("Usuario", UsuarioSchema);
+export default mongoose.model('Usuario', UsuarioSchema);
