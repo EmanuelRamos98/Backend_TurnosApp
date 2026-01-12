@@ -86,6 +86,14 @@ class TurnosRepository {
             .populate('profesional', 'email nombre');
     }
 
+    static async findTurnosActivosEnRango(profesionalId, fechaInicio, fechaFin) {
+        return await Turnos.find({
+            profesional: profesionalId,
+            fecha: { $gte: fechaInicio, $lte: fechaFin },
+            estado: { $ne: 'cancelado' },
+        });
+    }
+
     static async deleteTurno(id_turno) {
         return await Turnos.findByIdAndDelete(id_turno);
     }

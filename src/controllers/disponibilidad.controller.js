@@ -1,7 +1,10 @@
 import ApiResponse from '../helpers/api.response.js';
+import { generarSlots, getDiasDelMes } from '../helpers/date.helpers.js';
 import AppError from '../helpers/error.helpers.js';
 import { validaInput } from '../helpers/inputs.helpers.js';
+import AusenciaRepository from '../repositories/ausencia.repository.js';
 import DisponibilidadRepository from '../repositories/disponibilidad.repository.js';
+import TurnosRepository from '../repositories/turno.repository.js';
 import UsuarioRepository from '../repositories/usuario.repository.js';
 
 export const createDisponibilidad = async (req, res, next) => {
@@ -60,10 +63,10 @@ export const createDisponibilidad = async (req, res, next) => {
 
 export const getDisponibilidadByProfesional = async (req, res, next) => {
     try {
-        const { profesional_id } = req.params;
+        const { profesionalId } = req.params;
 
         const schema = {
-            profesional_id: {
+            profesionalId: {
                 type: 'string',
                 required: true,
                 min: 24,
@@ -76,7 +79,7 @@ export const getDisponibilidadByProfesional = async (req, res, next) => {
             return next(new AppError('Errores de validacion', 400, errores));
         }
 
-        const disponibilidad = await DisponibilidadRepository.getDisponibilidad(profesional_id);
+        const disponibilidad = await DisponibilidadRepository.getDisponibilidad(profesionalId);
         if (!disponibilidad) {
             return next(new AppError('No se encuentra disponibilidad', 404));
         }
@@ -89,11 +92,11 @@ export const getDisponibilidadByProfesional = async (req, res, next) => {
 
 export const updateDisponibilidad = async (req, res, next) => {
     try {
-        const { profesional_id, id } = req.params;
+        const { profesionalId, id } = req.params;
         const { horaInicio, horaFin, diaSemana, duracionTurno } = req.body;
 
         const schemaParams = {
-            profesional_id: {
+            profesionalId: {
                 type: 'string',
                 required: true,
                 min: 24,
@@ -125,7 +128,7 @@ export const updateDisponibilidad = async (req, res, next) => {
             return next(new AppError('La disponibilidad que intentas actualizar ne existe', 404));
         }
 
-        if (disponibilidadActual.profesional.toString() !== profesional_id) {
+        if (disponibilidadActual.profesional.toString() !== profesionalId) {
             return next(new AppError('Esta disponibilidad no pertenece al profecional indicado', 403));
         }
 
@@ -134,7 +137,7 @@ export const updateDisponibilidad = async (req, res, next) => {
         const finAValidar = horaFin || disponibilidadActual.horaFin;
 
         const hayConflicto = await DisponibilidadRepository.verificarSolapamiento(
-            profesional_id,
+            profesionalId,
             diaAValidar,
             inicioAValidar,
             finAValidar,
@@ -176,6 +179,160 @@ export const deleteDisponibilidad = async (req, res, next) => {
 
         await DisponibilidadRepository.deleteDisponibilidad(id);
         return res.status(200).json(new ApiResponse(200, 'Elimindada con exito'));
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getDiasDisponibles = async (req, res, next) => {
+    try {
+        const { profesionalId, mes, año } = req.query;
+
+        if (!profesionalId || !mes || !año) {
+            return next(new AppError('Faltan parametros(profesionalId, mes, año)', 400));
+        }
+
+        const fechaInicioMes = new Date(año, mes - 1, 1);
+        const fechaFinMes = new Date(año, mes, 0, 23, 59, 59);
+
+        const [reglasDisponibilidad, ausencias, turnosOcupados] = await Promise.all([
+            DisponibilidadRepository.getDisponibilidad(profesionalId),
+            AusenciaRepository.findAusenciasEnRango(profesionalId, fechaInicioMes, fechaFinMes),
+            TurnosRepository.findTurnosActivosEnRango(profesionalId, fechaInicioMes, fechaFinMes),
+        ]);
+
+        if (!reglasDisponibilidad || reglasDisponibilidad.length === 0) {
+            return res.status(200).json(new ApiResponse(200, 'El profesional no tiene horarios configurados', []));
+        }
+
+        const diasDelMes = getDiasDelMes(mes, año);
+
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+
+        const calendario = diasDelMes.map((fechaObj) => {
+            const fechaStr = fechaObj.toISOString().split('T')[0];
+
+            if (fechaObj < hoy) {
+                return {
+                    fecha: fechaStr,
+                    estado: 'no_laborable',
+                    disponible: false,
+                    mensaje: 'Fecha pasada',
+                };
+            }
+
+            const diaSemana = fechaObj.getDay();
+
+            const ausenciaDelDia = ausencias.find((aus) => fechaObj >= aus.fechaInicio && fechaObj <= aus.fechaFin);
+
+            if (ausenciaDelDia) {
+                return {
+                    fecha: fechaStr,
+                    estado: 'ausente',
+                    motivo: ausenciaDelDia.motivo,
+                    disponible: false,
+                };
+            }
+
+            const reglaDelDia = reglasDisponibilidad.filter((d) => d.diaSemana === diaSemana);
+
+            if (reglaDelDia.length === 0) {
+                return {
+                    fecha: fechaStr,
+                    estado: 'no_laborable',
+                    disponible: false,
+                };
+            }
+
+            let totalSlotsPosibles = [];
+
+            reglaDelDia.forEach((regla) => {
+                const slotsDeEsteTurno = generarSlots(regla.horaInicio, regla.horaFin, regla.duracionTurno);
+                totalSlotsPosibles = [...totalSlotsPosibles, ...slotsDeEsteTurno];
+            });
+
+            const turnosDelDia = turnosOcupados.filter((t) => t.fecha.toISOString().split('T')[0]);
+            const horasOcupadas = turnosDelDia.map((t) => t.hora);
+
+            const slotsLibres = totalSlotsPosibles.filter((hora) => !horasOcupadas.includes(hora));
+
+            if (slotsLibres.length === 0) {
+                return {
+                    fecha: fechaStr,
+                    estado: 'lleno',
+                    disponible: false,
+                };
+            }
+
+            return {
+                fecha: fechaStr,
+                estado: 'disponible',
+                slots: slotsLibres.length,
+                disponible: true,
+            };
+        });
+
+        res.status(200).json(new ApiResponse(200, 'Calendario calculado', calendario));
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getHorariosDelDia = async (req, res, next) => {
+    try {
+        const { profesionalId, fecha } = req.query;
+
+        if (!profesionalId || !fecha) {
+            return next(new AppError('Faltan parámetros (profesionalId, fecha)', 400));
+        }
+
+        const fechaConsultada = new Date(fecha + 'T00:00:00');
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+
+        if (fechaConsultada < hoy) {
+            return res.status(200).json(new ApiResponse(200, 'La fecha ya pasó', []));
+        }
+
+        const diaSemana = fechaConsultada.getDay();
+
+        const inicioDia = new Date(fecha + 'T00:00:00');
+        const finDia = new Date(fecha + 'T23:59:59');
+
+        const [reglasDisponibilidad, ausencias, turnosDelDia] = await Promise.all([
+            DisponibilidadRepository.getDisponibilidad(profesionalId),
+            AusenciaRepository.findAusenciasEnRango(profesionalId, inicioDia, finDia),
+            TurnosRepository.findTurnosActivosEnRango(profesionalId, inicioDia, finDia),
+        ]);
+
+        if (ausencias.length > 0) {
+            return res.status(200).json(new ApiResponse(200, 'El profesional no trabaja hoy (Ausencia)', []));
+        }
+
+        if (!reglasDisponibilidad) {
+            return res.status(200).json(new ApiResponse(200, 'Sin configuración', []));
+        }
+
+        const reglaDelDia = reglasDisponibilidad.filter((r) => r.diaSemana === diaSemana);
+
+        if (reglaDelDia.length === 0) {
+            return res.status(200).json(new ApiResponse(200, 'Dia no laboral', []));
+        }
+
+        let todosLosSlots = [];
+
+        reglaDelDia.forEach((regla) => {
+            const slots = generarSlots(regla.horaInicio, regla.horaFin, regla.duracionTurno);
+            todosLosSlots = [...todosLosSlots, ...slots];
+        });
+
+        todosLosSlots.sort();
+
+        const horasOcupadas = turnosDelDia.map((t) => t.hora);
+        const slotsLibres = todosLosSlots.filter((slots) => !horasOcupadas.includes(slots));
+
+        return res.status(200).json(new ApiResponse(200, 'Horarios disponibles', slotsLibres));
     } catch (error) {
         next(error);
     }
