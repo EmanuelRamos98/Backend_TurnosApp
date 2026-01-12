@@ -5,10 +5,6 @@ class AusenciaRepository {
         return await Ausencia.create(new_data);
     }
 
-    static async getAusencia(profesional, fecha) {
-        return await Ausencia.findOne({ profesional: profesional }, { fecha: fecha });
-    }
-
     static async findAusenciasEnRango(profesionalId, fechaInicio, fechaFin) {
         return await Ausencia.find({
             profesional: profesionalId,
@@ -18,6 +14,18 @@ class AusenciaRepository {
                 { fechaInicio: { $lt: fechaInicio }, fechaFin: { $gt: fechaFin } },
             ],
         });
+    }
+
+    static async findById(id) {
+        return await Ausencia.findById(id);
+    }
+
+    static async findAllByProfesional(profesionalId) {
+        return await Ausencia.find({ profesional: profesionalId }).sort({ fechaInicio: 1 });
+    }
+
+    static async delete(id) {
+        return await Ausencia.findByIdAndDelete(id);
     }
 }
 
