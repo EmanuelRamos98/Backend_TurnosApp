@@ -89,11 +89,16 @@ export const createTurno = async (req, res, next) => {
         const trabajaNormalmente = await DisponibilidadRepository.verificarRegla(profesional, diaSemana, hora);
         if (!trabajaNormalmente) return next(new AppError('El profesional no esta disponible en ese horario', 400));
 
-        const tieneAusencia = await AusenciaRepository.getAusencia(profesional, fecha);
-        if (tieneAusencia)
-            return next(
-                new AppError(`El profesional no esta disponible en esa fecha. Motivo: ${tieneAusencia.motivo}`, 400)
-            );
+        const ausenciasConflicto = await AusenciaRepository.findAusenciasEnRango(
+            profesional,
+            fechaCompleta,
+            fechaCompleta
+        );
+
+        if (ausenciasConflicto.length > 0) {
+            const motivo = ausenciasConflicto[0].motivo;
+            return next(new AppError(`El profesional no está disponible en esa fecha. Motivo: ${motivo}`, 400));
+        }
 
         const turnoOcupado = await TurnosRepository.findTurnos(profesional, fecha, hora);
         if (turnoOcupado) return next(new AppError('El turno ya esta ocupado por otra persona', 400));

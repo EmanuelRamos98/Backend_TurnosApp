@@ -8,5 +8,5 @@ ausenciaRoute.post('/', authMiddleware(['admin', 'profesional']), createAusencia
 
 ausenciaRoute.get('/:profesionalId', authMiddleware(['admin', 'profesional']), getAusencia);
 
-ausenciaRoute.delete('/:id', authMiddleware(['admin', 'profesional']), deleteAusencia);
+ausenciaRoute.delete('/delete/:id', authMiddleware(['admin', 'profesional']), deleteAusencia);
 export default ausenciaRoute;
