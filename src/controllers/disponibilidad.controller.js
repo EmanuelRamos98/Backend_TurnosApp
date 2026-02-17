@@ -187,7 +187,6 @@ export const deleteDisponibilidad = async (req, res, next) => {
 export const getDiasDisponibles = async (req, res, next) => {
     try {
         const { profesionalId, mes, año } = req.query;
-
         if (!profesionalId || !mes || !año) {
             return next(new AppError('Faltan parametros(profesionalId, mes, año)', 400));
         }
@@ -200,7 +199,6 @@ export const getDiasDisponibles = async (req, res, next) => {
             AusenciaRepository.findAusenciasEnRango(profesionalId, fechaInicioMes, fechaFinMes),
             TurnosRepository.findTurnosActivosEnRango(profesionalId, fechaInicioMes, fechaFinMes),
         ]);
-
         if (!reglasDisponibilidad || reglasDisponibilidad.length === 0) {
             return res.status(200).json(new ApiResponse(200, 'El profesional no tiene horarios configurados', []));
         }
@@ -252,7 +250,7 @@ export const getDiasDisponibles = async (req, res, next) => {
                 totalSlotsPosibles = [...totalSlotsPosibles, ...slotsDeEsteTurno];
             });
 
-            const turnosDelDia = turnosOcupados.filter((t) => t.fecha.toISOString().split('T')[0]);
+            const turnosDelDia = turnosOcupados.filter((t) => t.fecha.toISOString().split('T')[0] === fechaStr);
             const horasOcupadas = turnosDelDia.map((t) => t.hora);
 
             const slotsLibres = totalSlotsPosibles.filter((hora) => !horasOcupadas.includes(hora));

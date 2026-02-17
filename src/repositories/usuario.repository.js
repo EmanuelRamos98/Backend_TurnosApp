@@ -54,8 +54,8 @@ class UsuarioRepository {
         return await Usuario.findByIdAndDelete(id);
     }
 
-    static async getProfesional(profesional_id) {
-        return await Usuario.findById(profesional_id);
+    static async getAllProfesionales() {
+        return await Usuario.find({ rol: 'profesional' }).select('nombre apellido email _id').lean();
     }
 }
 

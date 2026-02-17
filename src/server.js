@@ -8,17 +8,20 @@ import disponibilidadRoute from './routes/disponibilidad.route.js';
 import errorHandle from './middleware/error.handle.middleware.js';
 import iniciarCron from './services/cron.services.js';
 import ausenciaRoute from './routes/ausencia.route.js';
+import profesionalRoute from './routes/profesionales.route.js';
 
 const PORT = 9090;
 const app = express();
 
 app.use(cors());
+
 app.use(express.json());
 app.use('/api/auth', auhtRoute);
 app.use('/api/turnos', turnoRoute);
 app.use('/api/disponibilidad', disponibilidadRoute);
 app.use('/api/ausencias', ausenciaRoute);
 app.use('/api/clientes', clienteRoute);
+app.use('/api/profesionales', profesionalRoute);
 
 iniciarCron();
 app.use(errorHandle);

@@ -11,6 +11,9 @@ const UsuarioSchema = new mongoose.Schema(
         password: { type: String, required: true },
         hasSetPassword: { type: Boolean, default: false },
 
+        verificationCode: { type: String },
+        verificationCodeExpires: { type: Date },
+
         rol: {
             type: String,
             dafult: 'cliente',

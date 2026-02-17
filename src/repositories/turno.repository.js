@@ -54,7 +54,7 @@ class TurnosRepository {
     static async findTurnosByCliente(clienteId) {
         return await Turnos.find({ cliente: clienteId })
             .populate('profesional', 'nombre apellido email')
-            .sort({ fecha: 1, hora: 1 });
+            .sort({ fecha: -1, hora: -1 });
     }
 
     static async findTurnosByProfesional(profesionalId, fecha = null) {

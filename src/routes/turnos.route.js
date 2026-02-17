@@ -12,7 +12,7 @@ import authMiddleware from '../middleware/auth.middleware.js';
 
 const turnoRoute = Router();
 //Cliente
-turnoRoute.post('/', createTurno);
+turnoRoute.post('/:profesionalId', createTurno);
 turnoRoute.get('/confirmar/:token', verifyTurno);
 turnoRoute.get('/mis-turnos', authMiddleware(['cliente']), getMisTurnosCliente);
 turnoRoute.patch('/:id/cancelar', authMiddleware(['cliente', 'profesional', 'admin']), cancelarTurno);

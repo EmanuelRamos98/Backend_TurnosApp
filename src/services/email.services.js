@@ -216,30 +216,11 @@ class EmailService {
     }
 
     // 8. Recuperación de Contraseña / Activar Cuenta
-    static async sendRestauracionPassword(email, nombre, link) {
+    static async sendRestauracionPassword(email, nombre, codigo) {
         const subject = 'Acción Requerida: Seguridad de tu cuenta';
 
         const html = `
-            <div style="font-family: Arial, sans-serif; padding: 30px; border: 1px solid #e0e0e0; border-radius: 8px; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-                <h2 style="color: #4F46E5; text-align: center;">🔐 Gestión de Seguridad</h2>
-                
-                <div style="color: #555; font-size: 16px; line-height: 1.6;">
-                    <p>Hola <strong>${nombre}</strong>,</p>
-                    <p>Hemos recibido una solicitud para crear o restablecer la contraseña de tu cuenta.</p>
-                    <p>Para continuar y asegurar tu acceso, por favor haz clic en el siguiente botón:</p>
-                    
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="${link}" style="background-color: #4F46E5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 50px; font-weight: bold; display: inline-block; font-size: 16px; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);">
-                            Crear mi Contraseña
-                        </a>
-                    </div>
-
-                    <p style="font-size: 14px;">Si el botón no funciona, copia este enlace en tu navegador:</p>
-                    <p style="word-break: break-all; color: #4F46E5; font-size: 13px;">${link}</p>
-                    
-                    <p style="color: #999; font-size: 12px; margin-top: 20px;">Si tú no solicitaste este cambio, puedes ignorar este correo tranquilamente.</p>
-                </div>
-            </div>
+            Tu código de verificación es: ${codigo}
         `;
 
         return await this.__enviar(email, subject, html);

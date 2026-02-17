@@ -3,8 +3,9 @@ import {
     identificarController,
     loginController,
     registerController,
-    restaurarClaveController,
+    restaurarPasswordController,
     solicitarClaveController,
+    solicitarRecuperacionController,
 } from '../controllers/auth.controller.js';
 
 const auhtRoute = Router();
@@ -13,9 +14,12 @@ auhtRoute.post('/identificar', identificarController);
 
 auhtRoute.post('/login', loginController);
 
+//Para activar un ciente
 auhtRoute.post('/solicitar-clave', solicitarClaveController);
 
-auhtRoute.post('/restaurar-clave/:token', restaurarClaveController);
+//Para cambiar contraseña
+auhtRoute.post('/solicitar-recuperacion', solicitarRecuperacionController);
+auhtRoute.post('/restaurar-password', restaurarPasswordController);
 
 //Para registrar profesionales/admis
 auhtRoute.post('/register', registerController);

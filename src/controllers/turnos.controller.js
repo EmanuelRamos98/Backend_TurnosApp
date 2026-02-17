@@ -11,14 +11,14 @@ import EmailService from '../services/email.services.js';
 
 export const createTurno = async (req, res, next) => {
     try {
-        const { datos_cliente, profesional, fecha, hora, clienteId } = req.body;
+        const { profesionalId } = req.params;
+        const { datos_cliente, fecha, hora, clienteId } = req.body;
 
         const usuarioLogueado = req.user || null;
         const isAdminOPro =
             usuarioLogueado && (usuarioLogueado.rol === 'admin' || usuarioLogueado.rol === 'profesional');
 
         const schemaTurno = {
-            profesional: { type: 'string', required: true, min: 24, max: 24 },
             fecha: { type: 'string', required: true },
             hora: { type: 'time', required: true },
         };
@@ -86,11 +86,11 @@ export const createTurno = async (req, res, next) => {
 
         const diaSemana = fechaCompleta.getDay();
 
-        const trabajaNormalmente = await DisponibilidadRepository.verificarRegla(profesional, diaSemana, hora);
+        const trabajaNormalmente = await DisponibilidadRepository.verificarRegla(profesionalId, diaSemana, hora);
         if (!trabajaNormalmente) return next(new AppError('El profesional no esta disponible en ese horario', 400));
 
         const ausenciasConflicto = await AusenciaRepository.findAusenciasEnRango(
-            profesional,
+            profesionalId,
             fechaCompleta,
             fechaCompleta
         );
@@ -100,12 +100,12 @@ export const createTurno = async (req, res, next) => {
             return next(new AppError(`El profesional no está disponible en esa fecha. Motivo: ${motivo}`, 400));
         }
 
-        const turnoOcupado = await TurnosRepository.findTurnos(profesional, fecha, hora);
+        const turnoOcupado = await TurnosRepository.findTurnos(profesionalId, fecha, hora);
         if (turnoOcupado) return next(new AppError('El turno ya esta ocupado por otra persona', 400));
 
         const new_data = {
             cliente: idFinalCliente,
-            profesional,
+            profesional: profesionalId,
             fecha: fechaCompleta,
             hora,
             estado: estadoInicial,
@@ -167,8 +167,8 @@ export const verifyTurno = async (req, res, next) => {
                 <h1 style="color: green;">¡Turno Confirmado! ✅</h1>
                 <p>Hola <b>${turno.cliente.nombre}</b>, tu turno ha sido agendado exitosamente.</p>
                 <p>Te esperamos el día <b>${new Date(turno.fecha).toLocaleDateString()}</b> a las <b>${
-            turno.hora
-        }</b>.</p>
+                    turno.hora
+                }</b>.</p>
                 <p>Hemos enviado un comprobante a ${turno.cliente.email}.</p>
             </div>
         `);
@@ -270,7 +270,7 @@ export const marcarEstadoTurno = async (req, res, next) => {
         const { estado } = req.body;
         const usuarioLogueado = req.user;
 
-        const estadosPermitidos = ['ausente', 'finalizado'];
+        const estadosPermitidos = ['ausente', 'finalizado', 'cancelado'];
 
         if (!estadosPermitidos.includes(estado)) {
             return next(new AppError(`Estado invalido: Solo se permite: ${estadosPermitidos.join(' o ')}`, 400));
@@ -289,10 +289,28 @@ export const marcarEstadoTurno = async (req, res, next) => {
             return next(new AppError('No tienes permiso para gestionar este turno', 403));
         }
 
-        if (['finalizado', 'ausente', 'cancelado'].includes(turno.estado)) {
-            return next(new AppError('Este turno ya fue cerrado y no se puede volver a modificar', 400));
+        //Validar fecha
+        const fechaStr = new Date(turno.fecha).toISOString().split('T')[0];
+        const fechaHoraTurno = new Date(`${fechaStr}T${turno.hora}:00`);
+        const ahora = new Date();
+
+        if (fechaHoraTurno > ahora) {
+            if (estado === 'finalizado' || estado === 'ausente') {
+                return next(
+                    new AppError('No puedes finalizar ni marcar ausente un turno futuro. Solo puedes cancelarlo', 400)
+                );
+            }
         }
 
+        if (turno.estado === 'cancelado') {
+            return next(new AppError('Un turno cancelado no se puede modificar.', 400));
+        }
+
+        if (['finalizado', 'ausente'].includes(turno.estado)) {
+            if (estado === 'cancelado') {
+                return next(new AppError('No puedes cancelar un turno que ya sucedió.', 400));
+            }
+        }
         const turnoUpdate = await TurnosRepository.updateTurno(id, { estado: estado });
         return res.status(200).json(new ApiResponse(200, `Turno marcado como ${estado}`, turnoUpdate));
     } catch (error) {
